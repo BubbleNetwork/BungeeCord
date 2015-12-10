@@ -7,7 +7,7 @@ public class ForgeConstants
 {
 
     // Forge
-    public static final String FORGE_TAG = "FORGE";
+    public static final String FORGE_REGISTER = "FORGE";
 
     // FML
     public static final String FML_TAG = "FML";

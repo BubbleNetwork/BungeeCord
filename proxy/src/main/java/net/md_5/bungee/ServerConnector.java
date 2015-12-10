@@ -1,11 +1,9 @@
 package net.md_5.bungee;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 import lombok.Getter;
@@ -80,7 +78,6 @@ public class ServerConnector extends PacketHandler
         this.ch = channel;
 
         this.handshakeHandler = new ForgeServerHandler( user, ch, target );
-        user.setForgeServerHandler( handshakeHandler );
         Handshake originalHandshake = user.getPendingConnection().getHandshake();
         Handshake copiedHandshake = new Handshake( originalHandshake.getProtocolVersion(), originalHandshake.getHost(), originalHandshake.getPort(), 2 );
 
@@ -169,7 +166,10 @@ public class ServerConnector extends PacketHandler
             }
         }
 
-        createAndSendRegisterMessage();
+        for ( PluginMessage message : user.getPendingConnection().getRegisterMessages() )
+        {
+            ch.write( message );
+        }
 
         if ( user.getSettings() != null )
         {
@@ -325,10 +325,11 @@ public class ServerConnector extends PacketHandler
             {
                 // We now set the server-side handshake handler for the client to this.
                 handshakeHandler.setServerAsForgeServer();
+                user.setForgeServerHandler( handshakeHandler );
             }
         }
 
-        if ( !handshakeHandler.isHandshakeComplete() && ( pluginMessage.getTag().equals( ForgeConstants.FML_HANDSHAKE_TAG ) || pluginMessage.getTag().equals( ForgeConstants.FORGE_TAG ) ) )
+        if ( !handshakeHandler.isHandshakeComplete() && ( pluginMessage.getTag().equals( ForgeConstants.FML_HANDSHAKE_TAG ) || pluginMessage.getTag().equals( ForgeConstants.FORGE_REGISTER ) ) )
         {
             handshakeHandler.handle( pluginMessage );
             if ( user.getForgeClientHandler().checkUserOutdated() )
@@ -350,29 +351,6 @@ public class ServerConnector extends PacketHandler
     @Override
     public String toString()
     {
-        // Yive's BungeeCord is just to help with identifiying if it's normal bungeecord or not.
-        return "[Yive's BungeeCord] [" + user.getName() + "] <-> ServerConnector [" + target.getName() + "]";
-    }
-
-    private void createAndSendRegisterMessage()
-    {
-        // Get the REGISTER messages and take the channels out of them
-        HashSet<String> channels = new HashSet<>();
-        for ( PluginMessage message : user.getPendingConnection().getRegisterMessages() )
-        {
-            channels.addAll( Util.split( new String( message.getData(), Charsets.UTF_8 ), "\00") );
-        }
-
-        // Remove all that have already been sent.
-        channels.removeAll( handshakeHandler.getReceivedRegisterMessages() );
-
-        // Only send a packet if we have something we want to send.
-        if ( !channels.isEmpty() )
-        {
-            PluginMessage toSend = new PluginMessage( "REGISTER", Util.format( channels, "\00" ).getBytes( Charsets.UTF_8 ), false );
-
-            // Send the amalgamated register packet.
-            ch.write( toSend );
-        }
+        return "[" + user.getName() + "] <-> ServerConnector [" + target.getName() + "]";
     }
 }

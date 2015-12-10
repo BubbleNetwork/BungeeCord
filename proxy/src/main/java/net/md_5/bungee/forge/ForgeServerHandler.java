@@ -1,14 +1,11 @@
 package net.md_5.bungee.forge;
 
-import com.google.common.base.Charsets;
 import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Set;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.md_5.bungee.UserConnection;
-import net.md_5.bungee.Util;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.forge.ForgeLogger.LogDirection;
 import net.md_5.bungee.netty.ChannelWrapper;
@@ -34,9 +31,6 @@ public class ForgeServerHandler
     @Getter
     private boolean serverForge = false;
 
-    @Getter
-    private final Set<String> receivedRegisterMessages = new HashSet<>();
-
     private final ArrayDeque<PluginMessage> packetQueue = new ArrayDeque<PluginMessage>();
 
     /**
@@ -48,9 +42,9 @@ public class ForgeServerHandler
      */
     public void handle(PluginMessage message) throws IllegalArgumentException
     {
-        if ( !message.getTag().equalsIgnoreCase( ForgeConstants.FML_HANDSHAKE_TAG ) && !message.getTag().equalsIgnoreCase(ForgeConstants.FORGE_TAG ) )
+        if ( !message.getTag().equalsIgnoreCase( ForgeConstants.FML_HANDSHAKE_TAG ) && !message.getTag().equalsIgnoreCase( ForgeConstants.FORGE_REGISTER ) )
         {
-            throw new IllegalArgumentException( "Expecting a FML Handshake or FORGE packet" );
+            throw new IllegalArgumentException( "Expecting a Forge REGISTER or FML Handshake packet." );
         }
 
         message.setAllowExtendedPacket( true ); // FML allows extended packets so this must be enabled
@@ -77,12 +71,6 @@ public class ForgeServerHandler
      */
     public void receive(PluginMessage message) throws IllegalArgumentException
     {
-        // Store the REGISTER messages being sent if we are in the correct phase.
-        if ( acceptRegisterMessages() && message.getTag().equals( "REGISTER" ) )
-        {
-            receivedRegisterMessages.addAll( Util.split( new String( message.getData(), Charsets.UTF_8 ), "\00") );
-        }
-
         state = state.handle( message, ch );
     }
 
@@ -93,16 +81,6 @@ public class ForgeServerHandler
     public void setServerAsForgeServer()
     {
         serverForge = true;
-    }
-
-    /**
-     * Returns whether the server is able to accept REGISTER messages at the beginning of the handshake.
-     * 
-     * @return <code>true</code> if the server accepts REGISTER messages at this time.
-     */
-    public boolean acceptRegisterMessages()
-    {
-        return state == ForgeServerHandshakeState.START || state == ForgeServerHandshakeState.HELLO;
     }
 
     /**
